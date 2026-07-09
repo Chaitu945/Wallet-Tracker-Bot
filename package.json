@@ -1,0 +1,21 @@
+{
+  "name": "wallet-tracker-bot",
+  "version": "1.0.0",
+  "description": "Multi-chain (EVM + Solana) wallet tracking Discord bot for memecoin/token apes. Tracks buys/sells, flags new-token launches, and computes per-wallet PnL.",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node --dns-result-order=ipv4first src/index.js",
+    "deploy-commands": "node --dns-result-order=ipv4first src/deployCommands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "better-sqlite3": "^11.3.0",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
