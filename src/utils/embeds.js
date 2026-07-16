@@ -21,7 +21,7 @@ function tradeAlertEmbed({ wallet, trade, isFreshApe, pairInfo }) {
     .setTitle(`${trade.side === "buy" ? "🟢 BUY" : "🔴 SELL"} — ${trade.tokenSymbol}`)
     .setDescription(
       `**Wallet:** ${wallet.nickname || shortAddr(wallet.address)} (${chainCfg.label})\n` +
-      `**Token:** \`${shortAddr(trade.tokenAddress)}\``
+      `**Token CA:** \`${trade.tokenAddress || "—"}\``
     )
     .addFields(
       { name: "Amount", value: trade.amountToken ? trade.amountToken.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—", inline: true },
@@ -30,6 +30,17 @@ function tradeAlertEmbed({ wallet, trade, isFreshApe, pairInfo }) {
     )
     .setFooter({ text: shortAddr(wallet.address) })
     .setTimestamp(trade.blockTs * 1000);
+
+  // Market cap (or FDV as fallback) shown on every trade — buy or sell — so you have
+  // sizing context for deciding whether to ape in or exit.
+  if (pairInfo?.marketCap || pairInfo?.fdv) {
+    const usingMarketCap = Boolean(pairInfo.marketCap);
+    embed.addFields({
+      name: usingMarketCap ? "Market Cap" : "FDV",
+      value: fmtUsd(usingMarketCap ? pairInfo.marketCap : pairInfo.fdv),
+      inline: true,
+    });
+  }
 
   if (chainCfg?.explorer && trade.txHash) {
     embed.setURL(`${chainCfg.explorer}${trade.txHash}`);

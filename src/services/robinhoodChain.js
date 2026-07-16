@@ -48,6 +48,7 @@ async function getRobinhoodSwaps(address, { limit = 20 } = {}) {
   try {
     [outgoing, incoming] = await Promise.all([
       callAlchemy(apiKey, {
+        fromBlock: "0x0",
         fromAddress: address,
         category: ["erc20"],
         order: "desc",
@@ -55,6 +56,7 @@ async function getRobinhoodSwaps(address, { limit = 20 } = {}) {
         withMetadata: true,
       }),
       callAlchemy(apiKey, {
+        fromBlock: "0x0",
         toAddress: address,
         category: ["erc20"],
         order: "desc",
@@ -66,6 +68,8 @@ async function getRobinhoodSwaps(address, { limit = 20 } = {}) {
     const status = err.response?.status;
     throw new Error(`Alchemy request failed${status ? ` (${status})` : ""}: ${err.message}`);
   }
+
+  console.log(`[robinhood] wallet ${address}: ${outgoing.length} outgoing, ${incoming.length} incoming ERC-20 transfers fetched`);
 
   const allTransfers = [...outgoing, ...incoming];
   if (allTransfers.length === 0) return [];
@@ -84,20 +88,24 @@ async function getRobinhoodSwaps(address, { limit = 20 } = {}) {
   for (const [hash, rows] of byTx.entries()) {
     const out = rows.filter((r) => r.from?.toLowerCase() === addrLower);
     const inn = rows.filter((r) => r.to?.toLowerCase() === addrLower);
-    if (out.length === 0 || inn.length === 0) continue; // plain transfer in/out, not a swap
+    if (out.length === 0 && inn.length === 0) continue;
 
-    const outBase = out.find((r) => BASE_TOKENS.has(r.rawContract?.address?.toLowerCase()));
-    const inBase = inn.find((r) => BASE_TOKENS.has(r.rawContract?.address?.toLowerCase()));
+    // NOTE: we deliberately don't require the WETH/USDG leg itself to show the wallet as
+    // sender/recipient — DEX routers usually wrap ETH and move WETH from the router's own
+    // address to the pool, not from the user's wallet. So instead we just check whether the
+    // wallet received or sent a *non-base* token in this transaction, and infer buy/sell from that.
+    const nonBaseIn = inn.filter((r) => !BASE_TOKENS.has(r.rawContract?.address?.toLowerCase()));
+    const nonBaseOut = out.filter((r) => !BASE_TOKENS.has(r.rawContract?.address?.toLowerCase()));
 
     let side, tokenLeg;
-    if (outBase && !inBase) {
-      side = "buy"; // spent a base token (WETH/USDG) -> received something else
-      tokenLeg = inn.find((r) => r !== inBase) || inn[0];
-    } else if (inBase && !outBase) {
-      side = "sell"; // received a base token -> gave something else
-      tokenLeg = out.find((r) => r !== outBase) || out[0];
+    if (nonBaseIn.length > 0 && nonBaseOut.length === 0) {
+      side = "buy"; // received a non-base token, sent nothing else non-base
+      tokenLeg = nonBaseIn[0];
+    } else if (nonBaseOut.length > 0 && nonBaseIn.length === 0) {
+      side = "sell"; // sent a non-base token, received nothing else non-base
+      tokenLeg = nonBaseOut[0];
     } else {
-      continue; // token-to-token or ambiguous — skip rather than guess wrong
+      continue; // token-to-token, pure base-token transfer, or ambiguous — skip
     }
 
     if (!tokenLeg?.rawContract?.address) continue;
@@ -120,6 +128,7 @@ async function getRobinhoodSwaps(address, { limit = 20 } = {}) {
 
   rawSwaps.sort((a, b) => b.blockTs - a.blockTs);
   const trimmed = rawSwaps.slice(0, limit);
+  console.log(`[robinhoodChain] ${address}: grouped into ${byTx.size} transactions, detected ${rawSwaps.length} swaps`);
 
   // Enrich with USD pricing via DexScreener (best-effort; uses current price)
   for (const s of trimmed) {
