@@ -3,8 +3,16 @@ const { CHAINS } = require("./chains");
 
 function fmtUsd(n) {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  if (n === 0) return "$0";
   const sign = n < 0 ? "-" : "";
-  return `${sign}$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  const abs = Math.abs(n);
+  // Values under a cent would otherwise round down to "$0" and look like an error —
+  // show a couple extra decimal places for those instead of collapsing to zero.
+  if (abs < 0.01) {
+    let str = abs.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+    return `${sign}$${str}`;
+  }
+  return `${sign}$${abs.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 
 // Memecoin prices are often extremely small (e.g. 0.0000000003169), and JS's default
