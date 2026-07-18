@@ -7,6 +7,24 @@ function fmtUsd(n) {
   return `${sign}$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 
+// Memecoin prices are often extremely small (e.g. 0.0000000003169), and JS's default
+// string conversion switches to ugly scientific notation ("3.169e-10") below a threshold.
+// This expands it into full, readable decimal instead.
+function fmtPrice(n) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  if (n === 0) return "$0";
+  if (Math.abs(n) >= 0.01) {
+    return `$${n.toLocaleString(undefined, { maximumFractionDigits: 6 })}`;
+  }
+  // Very small price — show enough decimal places to capture ~4 significant figures,
+  // fully expanded (no exponential notation).
+  const leadingZeros = Math.max(0, -Math.floor(Math.log10(Math.abs(n))) - 1);
+  const decimals = Math.min(leadingZeros + 5, 18); // cap to avoid absurdly long strings
+  let str = n.toFixed(decimals);
+  str = str.replace(/0+$/, "").replace(/\.$/, ""); // trim trailing zeros
+  return `$${str}`;
+}
+
 function shortAddr(addr) {
   if (!addr) return "?";
   return addr.length > 12 ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : addr;
@@ -26,7 +44,7 @@ function tradeAlertEmbed({ wallet, trade, isFreshApe, pairInfo }) {
     .addFields(
       { name: "Amount", value: trade.amountToken ? trade.amountToken.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—", inline: true },
       { name: "USD Value", value: fmtUsd(trade.amountUsd), inline: true },
-      { name: "Price", value: trade.priceUsd ? `$${trade.priceUsd}` : "—", inline: true }
+      { name: "Price", value: fmtPrice(trade.priceUsd), inline: true }
     )
     .setFooter({ text: shortAddr(wallet.address) })
     .setTimestamp(trade.blockTs * 1000);
@@ -49,8 +67,14 @@ function tradeAlertEmbed({ wallet, trade, isFreshApe, pairInfo }) {
   if (isFreshApe && pairInfo) {
     embed.addFields({
       name: "🆕 Fresh Ape Alert",
-      value: `Pool liquidity: ${fmtUsd(pairInfo.liquidityUsd)}\n[View chart](${pairInfo.url})`,
+      value: `Pool liquidity: ${fmtUsd(pairInfo.liquidityUsd)}`,
     });
+  }
+
+  // Always include a live chart link (not just fresh-ape trades) — one click gets you
+  // current price/mcap even if you're checking this alert well after it fired.
+  if (pairInfo?.url) {
+    embed.addFields({ name: "📈 Live Chart", value: `[View on DexScreener](${pairInfo.url})` });
   }
 
   return embed;
