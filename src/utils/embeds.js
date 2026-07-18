@@ -47,6 +47,7 @@ function tradeAlertEmbed({ wallet, trade, isFreshApe, pairInfo }) {
     .setTitle(`${trade.side === "buy" ? "🟢 BUY" : "🔴 SELL"} — ${trade.tokenSymbol}`)
     .setDescription(
       `**Wallet:** ${wallet.nickname || shortAddr(wallet.address)} (${chainCfg.label})\n` +
+      `**Wallet Address:** \`${wallet.address}\`\n` +
       `**Token CA:** \`${trade.tokenAddress || "—"}\``
     )
     .addFields(
