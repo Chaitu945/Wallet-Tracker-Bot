@@ -77,6 +77,13 @@ function updateLastChecked(walletId, ts) {
   db.prepare(`UPDATE wallets SET last_checked_ts = ? WHERE id = ?`).run(ts, walletId);
 }
 
+function updateNickname({ guildId, address, chain, nickname }) {
+  const stmt = db.prepare(`
+    UPDATE wallets SET nickname = ? WHERE guild_id = ? AND address = ? AND chain = ?
+  `);
+  return stmt.run(nickname || null, guildId, address.toLowerCase(), chain);
+}
+
 // ---- Trade log (used for PnL) ----
 
 function insertTrade(trade) {
@@ -105,6 +112,7 @@ module.exports = {
   getAllWallets,
   findWallet,
   updateLastChecked,
+  updateNickname,
   insertTrade,
   getTradesForWallet,
 };
