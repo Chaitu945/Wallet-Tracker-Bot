@@ -13,7 +13,7 @@ a watched wallet apes into a freshly-launched token, and computes per-wallet PnL
 - **PnL:** computed locally from a trade log stored in SQLite, using average-cost-basis
   accounting. This is provider-independent and works the same across all chains.
 - **Polling:** every wallet is checked on an interval (default every 2 minutes) rather than
-  via webhooks, so it  works on any host without a public URL.
+  via webhooks, so it works on any host without a public URL.
 
 ## Setup
 
