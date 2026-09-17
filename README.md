@@ -94,6 +94,8 @@ The suite uses Node's built-in test runner — no test framework to install. It 
 
 ## Setup
 
+**Requirements:** Node.js 20 or newer (node-cron 4 requires it).
+
 1. **Install dependencies**
 
    ```bash
