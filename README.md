@@ -1,5 +1,9 @@
 # Wallet Tracker Bot
 
+[![CI](https://github.com/Chaitu945/Wallet-Tracker-Bot/actions/workflows/ci.yml/badge.svg)](https://github.com/Chaitu945/Wallet-Tracker-Bot/actions/workflows/ci.yml)
+![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 A Discord bot that watches crypto trader wallets across **Ethereum, BNB Chain, Polygon, Base, Arbitrum, Robinhood Chain and Solana**, posts an alert when a watched wallet buys or sells, flags when it apes into a brand-new token, and computes per-wallet PnL from the history it has observed.
 
 Built as a self-directed project to work with third-party APIs, async polling, SQLite persistence, and accounting logic that has to stay correct across edge cases.
