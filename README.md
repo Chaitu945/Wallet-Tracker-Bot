@@ -10,6 +10,19 @@ Built as a self-directed project to work with third-party APIs, async polling, S
 
 ---
 
+## Screenshots
+
+Alerts are rendered by the bot's own embed builders. To keep the images reproducible without running live polling or spending API quota, they come from `npm run demo`, which feeds fixed fixtures through the same code path — see `docs/README.md`.
+
+|                                                                                                           |                                                                                               |
+| --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| ![Buy alert](docs/alert-buy.png)<br>**Buy alert** — amount, USD value, price, market cap and a chart link | ![Fresh ape](docs/alert-fresh-ape.png)<br>**Fresh ape** — flags a buy into a pool minutes old |
+| ![Sell alert](docs/alert-sell.png)<br>**Sell alert** — same shape, sell-coloured                          | ![PnL](docs/pnl.png)<br>**`/pnl`** — realized and unrealized, per token                       |
+
+_Sample data, not live signals._
+
+---
+
 ## What it does
 
 | Feature                  | Detail                                                                                         |
