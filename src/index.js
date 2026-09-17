@@ -24,7 +24,9 @@ for (const file of fs.readdirSync(commandsPath).filter((f) => f.endsWith(".js"))
   client.commands.set(command.data.name, command);
 }
 
-client.once("ready", () => {
+// `ready` was renamed to `clientReady` in discord.js (hard-renamed in v15);
+// listening on the old name logs a deprecation warning on every startup.
+client.once("clientReady", () => {
   console.log(`[bot] Logged in as ${client.user.tag}`);
   console.log(`[bot] Loaded ${client.commands.size} commands across ${client.guilds.cache.size} guild(s)`);
   startPoller(client);
