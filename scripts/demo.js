@@ -21,10 +21,36 @@ const { Client, GatewayIntentBits } = require("discord.js");
 
 const { tradeAlertEmbed, pnlEmbed } = require("../src/utils/embeds");
 
+/**
+ * Accepts a bare channel id, a `<#id>` mention, or a full Discord channel URL
+ * (`https://discord.com/channels/<guild>/<channel>`) — copying the URL is what
+ * people actually do, and the id is always the last path segment.
+ */
+function extractChannelId(input) {
+  const value = String(input || "").trim();
+  if (!value) return "";
+
+  const fromUrl = value.match(/channels\/\d+\/(\d+)/);
+  if (fromUrl) return fromUrl[1];
+
+  const fromMention = value.match(/^<#(\d+)>$/);
+  if (fromMention) return fromMention[1];
+
+  if (/^\d{17,20}$/.test(value)) return value;
+
+  // Looks like a Discord link but without a channel segment (e.g. a guild URL).
+  if (/discord\.com/.test(value)) return "";
+
+  return value;
+}
+
 function parseChannelId() {
   const flagIndex = process.argv.indexOf("--channel");
-  if (flagIndex !== -1 && process.argv[flagIndex + 1]) return process.argv[flagIndex + 1].trim();
-  return (process.env.DEMO_CHANNEL_ID || "").trim();
+  const raw =
+    flagIndex !== -1 && process.argv[flagIndex + 1]
+      ? process.argv[flagIndex + 1]
+      : process.env.DEMO_CHANNEL_ID;
+  return extractChannelId(raw);
 }
 
 // --- fixture data -----------------------------------------------------------
@@ -121,14 +147,24 @@ async function main() {
   const channelId = parseChannelId();
 
   if (!token) {
-    console.error("Missing DISCORD_TOKEN. Add it to .env or pass it as an env var.");
+    console.error(
+      "Missing DISCORD_TOKEN.\n" +
+        "\n" +
+        "  Create .env in the project root (it is gitignored) with:\n" +
+        "\n" +
+        "      DISCORD_TOKEN=your_bot_token\n" +
+        "\n" +
+        "  The bot must be invited to the server, with Send Messages allowed in\n" +
+        "  the target channel. See the README Setup section for the invite steps."
+    );
     process.exit(1);
   }
   if (!channelId) {
     console.error(
-      "Missing channel id.\n" +
-        "  Set DEMO_CHANNEL_ID, or pass --channel <id>.\n" +
-        "  (Enable Discord Developer Mode, then right-click the channel -> Copy Channel ID.)"
+      "Missing or unrecognised channel.\n" +
+        "  Pass --channel <id> (a channel URL also works), or set DEMO_CHANNEL_ID.\n" +
+        "  Enable Developer Mode in Discord, then right-click the channel and\n" +
+        "  choose Copy Channel ID (or Copy Link)."
     );
     process.exit(1);
   }
@@ -205,4 +241,11 @@ async function main() {
   });
 }
 
-main();
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(`[demo] unexpected failure: ${err.message}`);
+    process.exit(1);
+  });
+}
+
+module.exports = { extractChannelId };
