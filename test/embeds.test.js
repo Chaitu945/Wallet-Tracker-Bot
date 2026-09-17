@@ -18,6 +18,40 @@ test("fmtUsd formats ordinary amounts with separators", () => {
   assert.equal(fmtUsd(-12.5), "-$12.5");
 });
 
+// Locale-independence. Passing `undefined` as the locale makes toLocaleString
+// follow the host machine: on an en-IN machine 1250000 renders as "12,50,000"
+// (lakh grouping) while an en-US machine renders "1,250,000". Same code, two
+// different alerts — and CI never caught it, because the GitHub runner is not
+// en-IN. Thousands separators must therefore be asserted at 5+ digits.
+test("fmtUsd uses thousands grouping, not the host locale's grouping", () => {
+  assert.equal(fmtUsd(1250000), "$1,250,000");
+  assert.equal(fmtUsd(12040000), "$12,040,000");
+  assert.equal(fmtUsd(12345.67), "$12,345.67");
+  assert.equal(fmtUsd(-1250000), "-$1,250,000");
+});
+
+test("fmtUsd does not depend on the process ICU locale", () => {
+  // Guards the regression directly: whatever the host is set to, the output
+  // for the same input must be identical.
+  const original = process.env.LANG;
+  try {
+    process.env.LANG = "en_IN.UTF-8";
+    const withIndianLocale = fmtUsd(1250000);
+    process.env.LANG = "en_US.UTF-8";
+    const withUsLocale = fmtUsd(1250000);
+    assert.equal(withIndianLocale, withUsLocale, "fmtUsd output changed with the locale");
+    assert.equal(withUsLocale, "$1,250,000");
+  } finally {
+    if (original === undefined) delete process.env.LANG;
+    else process.env.LANG = original;
+  }
+});
+
+test("fmtPrice uses thousands grouping, not the host locale's grouping", () => {
+  assert.equal(fmtPrice(1250000), "$1,250,000");
+  assert.equal(fmtPrice(1204000.5), "$1,204,000.5");
+});
+
 test("fmtUsd keeps sub-cent values visible instead of rounding them to $0", () => {
   const rendered = fmtUsd(0.0004);
   assert.notEqual(rendered, "$0");

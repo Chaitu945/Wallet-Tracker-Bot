@@ -1,6 +1,15 @@
 const { EmbedBuilder } = require("discord.js");
 const { CHAINS } = require("./chains");
 
+// Number formatting pins the locale to "en-US" explicitly.
+//
+// Passing `undefined` makes toLocaleString follow the HOST machine, so the same
+// alert renders "12,50,000" (lakh grouping) on an en-IN box and "1,250,000"
+// elsewhere — the bot posting different numbers depending on which machine runs
+// it. It also went unnoticed by CI, whose runner is not en-IN. Alert text is
+// user-facing and must not vary by host locale.
+const LOCALE = "en-US";
+
 function fmtUsd(n) {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   if (n === 0) return "$0";
@@ -12,7 +21,7 @@ function fmtUsd(n) {
     let str = abs.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
     return `${sign}$${str}`;
   }
-  return `${sign}$${abs.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  return `${sign}$${abs.toLocaleString(LOCALE, { maximumFractionDigits: 2 })}`;
 }
 
 // Memecoin prices are often extremely small (e.g. 0.0000000003169), and JS's default
@@ -22,7 +31,7 @@ function fmtPrice(n) {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   if (n === 0) return "$0";
   if (Math.abs(n) >= 0.01) {
-    return `$${n.toLocaleString(undefined, { maximumFractionDigits: 6 })}`;
+    return `$${n.toLocaleString(LOCALE, { maximumFractionDigits: 6 })}`;
   }
   // Very small price — show enough decimal places to capture ~4 significant figures,
   // fully expanded (no exponential notation).
@@ -54,7 +63,7 @@ function tradeAlertEmbed({ wallet, trade, isFreshApe, pairInfo }) {
       {
         name: "Amount",
         value: trade.amountToken
-          ? trade.amountToken.toLocaleString(undefined, { maximumFractionDigits: 4 })
+          ? trade.amountToken.toLocaleString(LOCALE, { maximumFractionDigits: 4 })
           : "—",
         inline: true,
       },
