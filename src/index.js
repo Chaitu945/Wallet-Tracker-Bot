@@ -2,7 +2,18 @@ require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const { Client, GatewayIntentBits, Collection } = require("discord.js");
+const { closeDb } = require("./db");
 const { startPoller } = require("./services/poller");
+
+// Fail fast with a readable message rather than an opaque discord.js throw.
+for (const key of ["DISCORD_TOKEN", "DISCORD_CLIENT_ID"]) {
+  if (!process.env[key]) {
+    console.error(
+      `[bot] Missing required environment variable ${key}. Copy .env.example to .env and fill it in.`
+    );
+    process.exit(1);
+  }
+}
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.commands = new Collection();
@@ -15,6 +26,7 @@ for (const file of fs.readdirSync(commandsPath).filter((f) => f.endsWith(".js"))
 
 client.once("ready", () => {
   console.log(`[bot] Logged in as ${client.user.tag}`);
+  console.log(`[bot] Loaded ${client.commands.size} commands across ${client.guilds.cache.size} guild(s)`);
   startPoller(client);
 });
 
@@ -29,12 +41,39 @@ client.on("interactionCreate", async (interaction) => {
   } catch (err) {
     console.error(`[bot] error running /${interaction.commandName}:`, err);
     const payload = { content: "Something went wrong running that command.", ephemeral: true };
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(payload);
-    } else {
-      await interaction.reply(payload);
+    try {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp(payload);
+      } else {
+        await interaction.reply(payload);
+      }
+    } catch (replyErr) {
+      // The interaction token can expire while the command is still running.
+      console.error(`[bot] could not report command failure:`, replyErr.message);
     }
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// Without this, a dropped connection (network blip, Discord-side restart) takes
+// the process down silently.
+client.on("error", (err) => console.error("[bot] client error:", err.message));
+
+process.on("unhandledRejection", (err) => {
+  console.error("[bot] unhandled rejection:", err);
+});
+
+async function shutdown(signal) {
+  console.log(`[bot] ${signal} received, shutting down...`);
+  await client.destroy().catch(() => {});
+  closeDb();
+  process.exit(0);
+}
+
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+client.login(process.env.DISCORD_TOKEN).catch((err) => {
+  console.error(`[bot] login failed: ${err.message}`);
+  console.error("[bot] Check that DISCORD_TOKEN is a valid, unexpired bot token.");
+  process.exit(1);
+});

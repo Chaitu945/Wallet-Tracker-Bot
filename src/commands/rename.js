@@ -1,16 +1,19 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const { findWallet, updateNickname } = require("../db");
 const { CHAINS, chainChoices } = require("../utils/chains");
+const { isValidAddress } = require("../utils/validate");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("rename")
     .setDescription("Change the nickname of an already-tracked wallet")
+    .addStringOption((opt) => opt.setName("address").setDescription("Wallet address").setRequired(true))
     .addStringOption((opt) =>
-      opt.setName("address").setDescription("Wallet address").setRequired(true)
-    )
-    .addStringOption((opt) =>
-      opt.setName("chain").setDescription("Blockchain").setRequired(true).addChoices(...chainChoices())
+      opt
+        .setName("chain")
+        .setDescription("Blockchain")
+        .setRequired(true)
+        .addChoices(...chainChoices())
     )
     .addStringOption((opt) =>
       opt.setName("nickname").setDescription("New nickname (leave blank to clear it)").setRequired(false)
@@ -21,6 +24,13 @@ module.exports = {
     const address = interaction.options.getString("address").trim();
     const chain = interaction.options.getString("chain");
     const nickname = interaction.options.getString("nickname");
+
+    if (!CHAINS[chain] || !isValidAddress(address, chain)) {
+      return interaction.reply({
+        content: "That doesn't look like a valid address for that chain.",
+        ephemeral: true,
+      });
+    }
 
     const existing = findWallet({ guildId: interaction.guildId, address, chain });
     if (!existing) {

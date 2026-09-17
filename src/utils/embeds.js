@@ -47,11 +47,17 @@ function tradeAlertEmbed({ wallet, trade, isFreshApe, pairInfo }) {
     .setTitle(`${trade.side === "buy" ? "🟢 BUY" : "🔴 SELL"} — ${trade.tokenSymbol}`)
     .setDescription(
       `**Wallet:** ${wallet.nickname || shortAddr(wallet.address)} (${chainCfg.label})\n` +
-      `**Wallet Address:** \`${wallet.address}\`\n` +
-      `**Token CA:** \`${trade.tokenAddress || "—"}\``
+        `**Wallet Address:** \`${wallet.address}\`\n` +
+        `**Token CA:** \`${trade.tokenAddress || "—"}\``
     )
     .addFields(
-      { name: "Amount", value: trade.amountToken ? trade.amountToken.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "—", inline: true },
+      {
+        name: "Amount",
+        value: trade.amountToken
+          ? trade.amountToken.toLocaleString(undefined, { maximumFractionDigits: 4 })
+          : "—",
+        inline: true,
+      },
       { name: "USD Value", value: fmtUsd(trade.amountUsd), inline: true },
       { name: "Price", value: fmtPrice(trade.priceUsd), inline: true }
     )
@@ -102,7 +108,9 @@ function pnlEmbed({ wallet, pnl }) {
     );
 
   const topTokens = [...pnl.perToken]
-    .sort((a, b) => (b.realizedPnlUsd + (b.unrealizedPnlUsd || 0)) - (a.realizedPnlUsd + (a.unrealizedPnlUsd || 0)))
+    .sort(
+      (a, b) => b.realizedPnlUsd + (b.unrealizedPnlUsd || 0) - (a.realizedPnlUsd + (a.unrealizedPnlUsd || 0))
+    )
     .slice(0, 10);
 
   if (topTokens.length > 0) {
@@ -119,4 +127,4 @@ function pnlEmbed({ wallet, pnl }) {
   return embed;
 }
 
-module.exports = { tradeAlertEmbed, pnlEmbed, fmtUsd, shortAddr };
+module.exports = { tradeAlertEmbed, pnlEmbed, fmtUsd, fmtPrice, shortAddr };

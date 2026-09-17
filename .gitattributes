@@ -1,0 +1,10 @@
+# Normalize line endings to LF in the repository and in the working tree.
+# Without this, a Windows checkout stores CRLF, and `prettier --check` (which
+# expects LF by default) fails in CI on a file nobody actually changed.
+* text=auto eol=lf
+
+# Binary-ish files that must never be line-ending converted.
+*.sqlite binary
+*.png binary
+*.jpg binary
+*.ico binary

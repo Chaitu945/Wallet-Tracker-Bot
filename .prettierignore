@@ -1,0 +1,5 @@
+node_modules/
+tracker.sqlite*
+coverage/
+.DS_Store
+*.log

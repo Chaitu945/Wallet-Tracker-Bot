@@ -19,7 +19,10 @@ module.exports = {
       .setTitle("📒 Tracked Wallets")
       .setDescription(
         wallets
-          .map((w) => `**${CHAINS[w.chain]?.label || w.chain}** — \`${w.address}\`${w.nickname ? ` (${w.nickname})` : ""} — <#${w.channel_id}>`)
+          .map(
+            (w) =>
+              `**${CHAINS[w.chain]?.label || w.chain}** — \`${w.address}\`${w.nickname ? ` (${w.nickname})` : ""} — <#${w.channel_id}>`
+          )
           .join("\n")
       );
 

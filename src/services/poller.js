@@ -4,18 +4,31 @@ const { getSwaps } = require("./swaps");
 const { getTokenPairInfo, ageMinutes } = require("./dexscreener");
 const { CHAINS } = require("../utils/chains");
 const { tradeAlertEmbed } = require("../utils/embeds");
+const { pollIntervalToCron } = require("../utils/schedule");
 
 const NEW_TOKEN_THRESHOLD = Number(process.env.NEW_TOKEN_AGE_THRESHOLD_MINUTES || 1440);
 
+// Channel objects are reused across polls instead of being re-fetched for every
+// single trade. Cache misses (deleted channel, bot kicked) fall back to a fetch
+// and are evicted so a later poll can recover.
+const channelCache = new Map();
+
 function startPoller(client) {
-  const intervalMin = Number(process.env.POLL_INTERVAL_MINUTES || 2);
-  const cronExpr = `*/${Math.max(1, intervalMin)} * * * *`;
+  const { expression, minutes, clamped, requested } = pollIntervalToCron(
+    process.env.POLL_INTERVAL_MINUTES || 2
+  );
 
-  console.log(`[poller] starting, checking wallets every ${intervalMin} min`);
+  if (clamped) {
+    console.warn(
+      `[poller] POLL_INTERVAL_MINUTES=${requested} isn't a usable interval; using ${minutes} min instead.`
+    );
+  }
 
-  cron.schedule(cronExpr, () => pollAllWallets(client));
+  console.log(`[poller] starting, checking wallets every ${minutes} min (cron: ${expression})`);
 
-  // also run once shortly after boot
+  cron.schedule(expression, () => pollAllWallets(client));
+
+  // Also run once shortly after boot so newly added wallets report quickly.
   setTimeout(() => pollAllWallets(client), 5000);
 }
 
@@ -27,7 +40,7 @@ async function pollAllWallets(client) {
     } catch (err) {
       console.error(`[poller] error polling wallet ${wallet.address} (${wallet.chain}):`, err.message);
     }
-    // small delay between wallets to be gentle on API rate limits
+    // Small delay between wallets to be gentle on provider rate limits.
     await sleep(400);
   }
 }
@@ -46,10 +59,9 @@ async function pollWallet(client, wallet) {
   const sinceTs = wallet.last_checked_ts || 0;
   const newSwaps = swaps.filter((s) => s.blockTs > sinceTs).sort((a, b) => a.blockTs - b.blockTs);
 
-  // On the very first poll for a freshly-tracked wallet, backfill trade history for
-  // PnL purposes but don't fire alerts for a wall of old trades.
+  // On the first poll for a freshly-tracked wallet, backfill history for PnL but
+  // don't fire a wall of alerts for trades that already happened.
   for (const trade of newSwaps) {
-    // log for PnL, regardless of whether we alert
     insertTrade({
       walletId: wallet.id,
       txHash: trade.txHash,
@@ -62,7 +74,7 @@ async function pollWallet(client, wallet) {
       blockTs: trade.blockTs,
     });
 
-    if (isFirstRun) continue; // logged for PnL, but skip alerting on historical backfill
+    if (isFirstRun) continue;
 
     let isFreshApe = false;
     let pairInfo = null;
@@ -73,7 +85,7 @@ async function pollWallet(client, wallet) {
     }
 
     try {
-      const channel = await client.channels.fetch(wallet.channel_id);
+      const channel = await resolveChannel(client, wallet.channel_id);
       if (channel) {
         const embed = tradeAlertEmbed({ wallet, trade, isFreshApe, pairInfo });
         await channel.send({ embeds: [embed] });
@@ -83,9 +95,17 @@ async function pollWallet(client, wallet) {
     }
   }
 
-  // update watermark to the newest trade we've seen (or now, if none new)
+  // Advance the watermark to the newest trade seen (or now, if nothing new).
   const newestTs = newSwaps.length ? newSwaps[newSwaps.length - 1].blockTs : Math.floor(Date.now() / 1000);
   updateLastChecked(wallet.id, newestTs);
+}
+
+async function resolveChannel(client, channelId) {
+  if (channelCache.has(channelId)) return channelCache.get(channelId);
+
+  const channel = await client.channels.fetch(channelId).catch(() => null);
+  if (channel) channelCache.set(channelId, channel);
+  return channel;
 }
 
 function sleep(ms) {

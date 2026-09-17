@@ -5,11 +5,21 @@
 const CHAINS = {
   eth: { label: "Ethereum", type: "evm", moralisChain: "eth", explorer: "https://etherscan.io/tx/" },
   bsc: { label: "BNB Chain", type: "evm", moralisChain: "bsc", explorer: "https://bscscan.com/tx/" },
-  polygon: { label: "Polygon", type: "evm", moralisChain: "polygon", explorer: "https://polygonscan.com/tx/" },
+  polygon: {
+    label: "Polygon",
+    type: "evm",
+    moralisChain: "polygon",
+    explorer: "https://polygonscan.com/tx/",
+  },
   base: { label: "Base", type: "evm", moralisChain: "base", explorer: "https://basescan.org/tx/" },
   arbitrum: { label: "Arbitrum", type: "evm", moralisChain: "arbitrum", explorer: "https://arbiscan.io/tx/" },
   solana: { label: "Solana", type: "solana", moralisChain: "mainnet", explorer: "https://solscan.io/tx/" },
-  robinhood: { label: "Robinhood Chain", type: "robinhood", moralisChain: null, explorer: "https://robinhoodchain.blockscout.com/tx/" },
+  robinhood: {
+    label: "Robinhood Chain",
+    type: "robinhood",
+    moralisChain: null,
+    explorer: "https://robinhoodchain.blockscout.com/tx/",
+  },
 };
 
 function isValidChain(key) {

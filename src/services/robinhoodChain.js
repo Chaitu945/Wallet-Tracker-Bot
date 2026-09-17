@@ -66,10 +66,14 @@ async function getRobinhoodSwaps(address, { limit = 20 } = {}) {
     ]);
   } catch (err) {
     const status = err.response?.status;
-    throw new Error(`Alchemy request failed${status ? ` (${status})` : ""}: ${err.message}`);
+    throw new Error(`Alchemy request failed${status ? ` (${status})` : ""}: ${err.message}`, {
+      cause: err,
+    });
   }
 
-  console.log(`[robinhood] wallet ${address}: ${outgoing.length} outgoing, ${incoming.length} incoming ERC-20 transfers fetched`);
+  console.log(
+    `[robinhood] wallet ${address}: ${outgoing.length} outgoing, ${incoming.length} incoming ERC-20 transfers fetched`
+  );
 
   const allTransfers = [...outgoing, ...incoming];
   if (allTransfers.length === 0) return [];
@@ -128,16 +132,22 @@ async function getRobinhoodSwaps(address, { limit = 20 } = {}) {
 
   rawSwaps.sort((a, b) => b.blockTs - a.blockTs);
   const trimmed = rawSwaps.slice(0, limit);
-  console.log(`[robinhoodChain] ${address}: grouped into ${byTx.size} transactions, detected ${rawSwaps.length} swaps`);
+  console.log(
+    `[robinhoodChain] ${address}: grouped into ${byTx.size} transactions, detected ${rawSwaps.length} swaps`
+  );
 
-  // Enrich with USD pricing via DexScreener (best-effort; uses current price)
-  for (const s of trimmed) {
-    const info = await getTokenPairInfo(s.tokenAddress);
-    if (info?.priceUsd) {
-      s.priceUsd = info.priceUsd;
-      s.amountUsd = s.amountToken * info.priceUsd;
-    }
-  }
+  // Enrich with USD pricing via DexScreener (best-effort; uses current price).
+  // Looked up in parallel — sequentially awaiting up to `limit` HTTP calls made
+  // this the slowest part of a Robinhood poll by a wide margin.
+  await Promise.all(
+    trimmed.map(async (s) => {
+      const info = await getTokenPairInfo(s.tokenAddress);
+      if (info?.priceUsd) {
+        s.priceUsd = info.priceUsd;
+        s.amountUsd = s.amountToken * info.priceUsd;
+      }
+    })
+  );
 
   return trimmed;
 }
