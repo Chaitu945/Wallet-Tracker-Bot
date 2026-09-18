@@ -251,18 +251,24 @@ async function main() {
     const current = (values[field.key] || "").trim();
     const isPlaceholder = !current || PLACEHOLDER_RE.test(current);
 
+    // An existing value is only left alone if it actually passes validation.
+    // Skipping every set-but-unvalidated value would let a truncated key or a
+    // paste accident sit in .env indefinitely, which is the exact failure this
+    // script exists to prevent.
     if (!isPlaceholder && !force) {
-      console.log(`  ${field.key} — already set (${current.length} chars), keeping it.`);
-      continue;
+      const existingProblem = field.validate(current);
+      if (!existingProblem) {
+        console.log(`  ${field.key} — set (${current.length} chars) and looks valid, keeping it.`);
+        continue;
+      }
+      console.log(`\n${field.label}`);
+      console.log(`  ${field.key} is set (${current.length} chars) but looks wrong:`);
+      console.log(`    ${existingProblem}`);
+    } else {
+      const status = current ? "currently the placeholder" : "currently empty";
+      console.log(`\n${field.label}`);
+      console.log(`  ${field.key} is ${status}.`);
     }
-
-    const status = isPlaceholder
-      ? current
-        ? "currently the placeholder"
-        : "currently empty"
-      : "currently set";
-    console.log(`\n${field.label}`);
-    console.log(`  ${field.key} is ${status}.`);
     console.log(`  Where to get it: ${field.hint}`);
 
     // Bounded retries so a typo doesn't mean re-running the whole script.
