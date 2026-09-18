@@ -147,6 +147,17 @@ The suite uses Node's built-in test runner — no test framework to install. It 
    registration.
    Re-run with `npm run setup -- --force` to overwrite values already set.
 
+   Then confirm the credentials actually work:
+
+   ```bash
+   npm run check-keys
+   ```
+
+   Format checks catch a truncated paste, but only the provider can say whether a
+   well-formed key is _valid_. This calls each API the bot will call and reports
+   `PASS`/`FAIL` per credential — a revoked or wrong-project key otherwise fails
+   later as an auth error on the first poll.
+
 6. **Register the slash commands** (once, and again whenever commands change)
 
    ```bash
