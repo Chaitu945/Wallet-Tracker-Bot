@@ -183,6 +183,26 @@ Add an entry to `src/utils/chains.js`. If it is an EVM chain Moralis already ind
 
 ---
 
+## Troubleshooting
+
+**`NODE_MODULE_VERSION` mismatch after switching Node versions.** `better-sqlite3` is a native module, so its binary is tied to the Node ABI it was built against (Node 20 = 115, 22 = 127, 24 = 137). Install dependencies with one Node version and run the bot with another, and it fails to load:
+
+```
+Error: The module '...better_sqlite3.node' was compiled against a different
+Node.js version using NODE_MODULE_VERSION 127. This version of Node.js
+requires NODE_MODULE_VERSION 137.
+```
+
+Rebuild against whichever Node you actually run:
+
+```bash
+npm rebuild better-sqlite3
+```
+
+Run `node -v` and `which -a node` if this is confusing — machines with a system Node _and_ a bundled one (nvm, a packaged runtime, an IDE) routinely have two on `PATH`, and only one of them built `node_modules`. CI runs the suite on Node 20, 22 and 24, each installing its own dependencies, so an ABI problem is caught there rather than on your machine.
+
+---
+
 ## Known limitations
 
 - **PnL only knows what it saw.** It accounts from the moment you started tracking a wallet; trades before that are invisible to the cost basis. Sells of unseen positions count as proceeds with no cost basis rather than being dropped.
