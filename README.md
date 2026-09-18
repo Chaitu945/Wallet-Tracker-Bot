@@ -201,6 +201,8 @@ npm rebuild better-sqlite3
 
 Run `node -v` and `which -a node` if this is confusing — machines with a system Node _and_ a bundled one (nvm, a packaged runtime, an IDE) routinely have two on `PATH`, and only one of them built `node_modules`. CI runs the suite on Node 20, 22 and 24, each installing its own dependencies, so an ABI problem is caught there rather than on your machine.
 
+**Why `better-sqlite3` is pinned to `~12.9.0`.** Native modules ship prebuilt binaries per Node ABI, and falling back to compiling from source is fragile on a bare CI runner. `better-sqlite3` has no Node 24 prebuild before 12.4, and 12.10 dropped the Node 20 prebuild — so `12.9.x` is the last line with prebuilds for all three versions this project supports (Node 20, 22 and 24). Removing the tilde lets npm resolve to 12.10+, which silently reintroduces a source build.
+
 ---
 
 ## Known limitations
