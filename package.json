@@ -8,6 +8,7 @@
     "start": "node --dns-result-order=ipv4first src/index.js",
     "dev": "node --watch --dns-result-order=ipv4first src/index.js",
     "test": "node --test",
+    "setup": "node scripts/setup-env.js",
     "demo": "node scripts/demo.js",
     "lint": "eslint .",
     "format": "prettier --write .",

@@ -132,9 +132,17 @@ The suite uses Node's built-in test runner — no test framework to install. It 
 5. **Configure environment**
 
    ```bash
-   cp .env.example .env
-   # fill in DISCORD_TOKEN, DISCORD_CLIENT_ID, MORALIS_API_KEY, ALCHEMY_API_KEY
+   npm run setup
    ```
+
+   Prompts for each credential with masked input and validates the shape before
+   writing `.env` — so a truncated paste, a stray quote, or the placeholder text
+   from `.env.example` is rejected with a reason instead of silently producing a
+   bot that logs in but never tracks anything. Values are never echoed.
+
+   Prefer to do it by hand? `cp .env.example .env` and fill in
+   `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `MORALIS_API_KEY`, `ALCHEMY_API_KEY`.
+   Re-run with `npm run setup -- --force` to overwrite values already set.
 
 6. **Register the slash commands** (once, and again whenever commands change)
 
