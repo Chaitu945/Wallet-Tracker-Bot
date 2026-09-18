@@ -15,6 +15,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { applicationIdFromToken } = require("../src/utils/discordIds");
 
 const ENV_PATH = path.join(__dirname, "..", ".env");
 const ENV_EXAMPLE = path.join(__dirname, "..", ".env.example");
@@ -78,11 +79,20 @@ const FIELDS = [
   },
   {
     key: "DISCORD_CLIENT_ID",
-    label: "Discord application ID",
-    hint: "Developer Portal -> your app -> General Information -> Application ID",
-    validate: (v) => {
+    label: "Discord application ID (optional — derived from the token if you skip it)",
+    hint: "Developer Portal -> your app -> General Information -> Application ID. Press Enter to skip: the bot reads it from the token, which is authoritative.",
+    optional: true,
+    validate: (v, ctx) => {
       if (/^your_/.test(v)) return "that is still the placeholder text from .env.example.";
       if (!/^\d{17,20}$/.test(v)) return "an application ID is 17-20 digits, nothing else.";
+
+      // A channel or guild id is also 17-20 digits, so shape alone cannot tell
+      // them apart. The token can: it encodes the real application id, which is
+      // how a pasted channel id produces "Unknown Application" at deploy time.
+      const expected = ctx?.token ? applicationIdFromToken(ctx.token) : null;
+      if (expected && v !== expected) {
+        return `that is not the application your token belongs to (${expected}). It looks like a channel or guild id — those appear in URLs and have the same shape. Press Enter to skip this; the bot derives it from the token.`;
+      }
       return null;
     },
   },
@@ -247,6 +257,14 @@ async function main() {
 
   const updates = {};
 
+  // Validators may need the token (to cross-check the application id). It is
+  // resolved lazily so it reflects a token entered earlier in this same run.
+  const ctx = {
+    get token() {
+      return (updates.DISCORD_TOKEN || values.DISCORD_TOKEN || "").trim();
+    },
+  };
+
   for (const field of FIELDS) {
     const current = (values[field.key] || "").trim();
     const isPlaceholder = !current || PLACEHOLDER_RE.test(current);
@@ -256,7 +274,7 @@ async function main() {
     // paste accident sit in .env indefinitely, which is the exact failure this
     // script exists to prevent.
     if (!isPlaceholder && !force) {
-      const existingProblem = field.validate(current);
+      const existingProblem = field.validate(current, ctx);
       if (!existingProblem) {
         console.log(`  ${field.key} — set (${current.length} chars) and looks valid, keeping it.`);
         continue;
@@ -278,7 +296,7 @@ async function main() {
         console.log("  skipped.");
         break;
       }
-      const problem = field.validate(answer);
+      const problem = field.validate(answer, ctx);
       if (!problem) {
         updates[field.key] = answer;
         console.log(`  accepted (${answer.length} chars).`);
@@ -289,24 +307,46 @@ async function main() {
     }
   }
 
+  // A value can end the run still invalid — the user skipped it, or ran out of
+  // attempts — and a headline of "Nothing to write" would read as success while
+  // a wrong value sits in .env. Report the state in every path.
+  function reportState() {
+    const stillInvalid = FIELDS.map((f) => {
+      const value = (updates[f.key] || values[f.key] || "").trim();
+      if (!value || PLACEHOLDER_RE.test(value)) return null;
+      const problem = f.validate(value, ctx);
+      return problem ? { key: f.key, problem } : null;
+    }).filter(Boolean);
+
+    if (stillInvalid.length) {
+      console.log("");
+      for (const { key, problem } of stillInvalid) {
+        console.log(`  ${key} is still set to a value that looks wrong and will be ignored:`);
+        console.log(`    ${problem}`);
+      }
+    }
+
+    const stillMissing = FIELDS.filter((f) => {
+      const v = (updates[f.key] || values[f.key] || "").trim();
+      return (!v || PLACEHOLDER_RE.test(v)) && !f.optional;
+    });
+    if (stillMissing.length) {
+      console.log(`Still required: ${stillMissing.map((f) => f.key).join(", ")}`);
+    } else if (!stillInvalid.length) {
+      console.log("\nNext:  npm run deploy-commands   then   npm start");
+    }
+  }
+
   if (Object.keys(updates).length === 0) {
-    console.log("\nNothing to write. .env unchanged.");
+    console.log("\nNothing to write. .env unchanged on disk.");
+    reportState();
     closeReader();
     return;
   }
 
   writeEnvFile(lines, updates);
   console.log(`\nWrote ${Object.keys(updates).length} value(s) to .env (permissions set to owner-only).`);
-
-  const stillMissing = FIELDS.filter((f) => {
-    const v = (updates[f.key] || values[f.key] || "").trim();
-    return (!v || PLACEHOLDER_RE.test(v)) && !f.optional;
-  });
-  if (stillMissing.length) {
-    console.log(`Still required: ${stillMissing.map((f) => f.key).join(", ")}`);
-  } else {
-    console.log("\nNext:  npm run deploy-commands   then   npm start");
-  }
+  reportState();
 
   closeReader();
 }

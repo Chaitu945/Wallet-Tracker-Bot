@@ -6,13 +6,11 @@ const { closeDb } = require("./db");
 const { startPoller } = require("./services/poller");
 
 // Fail fast with a readable message rather than an opaque discord.js throw.
-for (const key of ["DISCORD_TOKEN", "DISCORD_CLIENT_ID"]) {
-  if (!process.env[key]) {
-    console.error(
-      `[bot] Missing required environment variable ${key}. Copy .env.example to .env and fill it in.`
-    );
-    process.exit(1);
-  }
+// DISCORD_CLIENT_ID is deliberately not required: the application id is derived
+// from the token, so requiring a second copy of it only adds a way to get it wrong.
+if (!(process.env.DISCORD_TOKEN || "").trim()) {
+  console.error("[bot] Missing DISCORD_TOKEN. Run `npm run setup` to fill in .env interactively.");
+  process.exit(1);
 }
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });

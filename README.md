@@ -122,7 +122,7 @@ The suite uses Node's built-in test runner — no test framework to install. It 
 2. **Create a Discord bot**
    - [Discord Developer Portal](https://discord.com/developers/applications) → New Application
    - **Bot** tab → Reset Token → copy it → `DISCORD_TOKEN`
-   - **General Information** tab → copy Application ID → `DISCORD_CLIENT_ID`
+   - **General Information** tab → note the Application ID (you don't need to copy it anywhere — the bot reads it from the token)
    - **OAuth2 → URL Generator**: scopes `bot`, `applications.commands`; permissions `Send Messages`, `Embed Links`. Open the generated URL to invite the bot.
 
 3. **Get a Moralis API key** — free tier at [moralis.com](https://moralis.com). One key covers every EVM chain and Solana.
@@ -141,7 +141,10 @@ The suite uses Node's built-in test runner — no test framework to install. It 
    bot that logs in but never tracks anything. Values are never echoed.
 
    Prefer to do it by hand? `cp .env.example .env` and fill in
-   `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `MORALIS_API_KEY`, `ALCHEMY_API_KEY`.
+   `DISCORD_TOKEN`, `MORALIS_API_KEY`, `ALCHEMY_API_KEY`. `DISCORD_CLIENT_ID` is
+   optional — the application id is derived from the token, which is
+   authoritative, so a pasted channel or guild id cannot break command
+   registration.
    Re-run with `npm run setup -- --force` to overwrite values already set.
 
 6. **Register the slash commands** (once, and again whenever commands change)
