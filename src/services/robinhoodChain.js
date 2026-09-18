@@ -141,7 +141,7 @@ async function getRobinhoodSwaps(address, { limit = 20 } = {}) {
   // this the slowest part of a Robinhood poll by a wide margin.
   await Promise.all(
     trimmed.map(async (s) => {
-      const info = await getTokenPairInfo(s.tokenAddress);
+      const info = await getTokenPairInfo(s.tokenAddress, "robinhood");
       if (info?.priceUsd) {
         s.priceUsd = info.priceUsd;
         s.amountUsd = s.amountToken * info.priceUsd;

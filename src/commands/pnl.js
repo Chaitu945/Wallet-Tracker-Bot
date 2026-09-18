@@ -38,7 +38,7 @@ module.exports = {
     }
 
     await interaction.deferReply();
-    const pnl = await computeWalletPnl(wallet.id);
+    const pnl = await computeWalletPnl(wallet.id, wallet.chain);
     const embed = pnlEmbed({ wallet, pnl });
     await interaction.editReply({ embeds: [embed] });
   },

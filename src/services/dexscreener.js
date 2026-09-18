@@ -3,39 +3,47 @@ const axios = require("axios");
 const DEXSCREENER = "https://api.dexscreener.com/latest/dex";
 
 /**
+ * Choose the canonical pair for a token from DexScreener's response.
+ *
+ * Pure and separately testable because it is where the subtle bug lives: a token
+ * address is not unique across chains. `/tokens/{address}` returns every pair on
+ * every chain sharing that address — Ethereum USDC comes back as 28 PulseChain
+ * pairs and 2 Ethereum ones — so picking "highest liquidity" across all of them
+ * can silently select another network's market. That yields a wrong price, a
+ * wrong market cap, and a wrong "fresh ape" pool age.
+ *
+ * `chainId` is therefore a filter, not a hint: no matching chain means no data,
+ * which the caller treats as "unknown" rather than substituting a wrong number.
+ */
+function pickPrimaryPair(pairs, chainId) {
+  if (!Array.isArray(pairs) || pairs.length === 0) return null;
+
+  const candidates = chainId ? pairs.filter((p) => p.chainId === chainId) : pairs;
+  if (candidates.length === 0) return null;
+
+  return candidates.reduce(
+    (best, p) => ((p.liquidity?.usd || 0) > (best.liquidity?.usd || 0) ? p : best),
+    candidates[0]
+  );
+}
+
+/**
  * Look up market data for a token so we can flag when a tracked wallet apes into
  * a very new pool.
  *
- * Uses the `/tokens/{address}` endpoint rather than `/search?q=`, which is a fuzzy
- * text search: it happily returns unrelated tokens whose name happens to contain
- * the address, burns a bigger response, and needs post-filtering to be correct.
- * The token endpoint is an exact lookup, so every returned pair actually contains
- * this token.
+ * `chainId` is the DexScreener chain identifier (see utils/chains.js `dexChain`).
+ * Omitting it falls back to the old unscoped behaviour and should be avoided.
  */
-async function getTokenPairInfo(tokenAddress) {
+async function getTokenPairInfo(tokenAddress, chainId) {
   if (!tokenAddress) return null;
 
   try {
     const res = await axios.get(`${DEXSCREENER}/tokens/${tokenAddress}`, { timeout: 10000 });
-    const pairs = res.data?.pairs;
-    if (!Array.isArray(pairs) || pairs.length === 0) return null;
-
-    // Belt-and-braces: only keep pairs that really reference this token, then pick
-    // the deepest pool as the canonical one (a token can have many pairs).
-    const addrLower = String(tokenAddress).toLowerCase();
-    const matching = pairs.filter(
-      (p) =>
-        p.baseToken?.address?.toLowerCase() === addrLower ||
-        p.quoteToken?.address?.toLowerCase() === addrLower
-    );
-    if (matching.length === 0) return null;
-
-    const primary = matching.reduce(
-      (best, p) => ((p.liquidity?.usd || 0) > (best.liquidity?.usd || 0) ? p : best),
-      matching[0]
-    );
+    const primary = pickPrimaryPair(res.data?.pairs, chainId);
+    if (!primary) return null;
 
     return {
+      chainId: primary.chainId,
       pairCreatedAt: primary.pairCreatedAt || null, // ms epoch
       priceUsd: primary.priceUsd ? Number(primary.priceUsd) : null,
       liquidityUsd: primary.liquidity?.usd || null,
@@ -56,4 +64,4 @@ function ageMinutes(pairCreatedAtMs) {
   return Math.floor((Date.now() - pairCreatedAtMs) / 60000);
 }
 
-module.exports = { getTokenPairInfo, ageMinutes };
+module.exports = { getTokenPairInfo, ageMinutes, pickPrimaryPair };

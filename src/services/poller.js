@@ -79,7 +79,7 @@ async function pollWallet(client, wallet) {
     let isFreshApe = false;
     let pairInfo = null;
     if (trade.side === "buy" && trade.tokenAddress) {
-      pairInfo = await getTokenPairInfo(trade.tokenAddress);
+      pairInfo = await getTokenPairInfo(trade.tokenAddress, CHAINS[wallet.chain]?.dexChain);
       const age = ageMinutes(pairInfo?.pairCreatedAt);
       isFreshApe = age !== null && age <= NEW_TOKEN_THRESHOLD;
     }
